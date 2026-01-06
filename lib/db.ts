@@ -1,37 +1,48 @@
 import { createClient } from "@libsql/client";
 
-// Safely access environment variables in various environments (Vite, Next.js, Standard Browser)
-const getEnv = (key: string): string | undefined => {
+// Helper to reliably get Env Vars in Vite/Vercel.
+// We access properties directly so the bundler (Vite) can statically replace them with the actual values during build.
+const getEnvConfig = () => {
+  let url = "";
+  let token = "";
+
+  // 1. Try Vite's import.meta.env
   try {
-    // Check process.env (Node/Next.js/Webpack)
-    if (typeof process !== 'undefined' && process.env) {
-      const val = process.env[key];
-      return typeof val === 'string' ? val : undefined;
-    }
-    // Check import.meta.env (Vite)
     // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
+    if (typeof import.meta !== "undefined" && import.meta.env) {
       // @ts-ignore
-      const val = import.meta.env[key];
-      return typeof val === 'string' ? val : undefined;
+      url = import.meta.env.NEXT_PUBLIC_TURSO_DATABASE_URL || import.meta.env.VITE_TURSO_DATABASE_URL;
+      // @ts-ignore
+      token = import.meta.env.NEXT_PUBLIC_TURSO_AUTH_TOKEN || import.meta.env.VITE_TURSO_AUTH_TOKEN;
     }
-  } catch (e) {
-    // Ignore errors
+  } catch (e) {}
+
+  // 2. Fallback to process.env (for compatibility or some Vercel build steps)
+  if (!url || !token) {
+    try {
+      // @ts-ignore
+      if (typeof process !== "undefined" && process.env) {
+        // @ts-ignore
+        url = process.env.NEXT_PUBLIC_TURSO_DATABASE_URL || process.env.VITE_TURSO_DATABASE_URL;
+        // @ts-ignore
+        token = process.env.NEXT_PUBLIC_TURSO_AUTH_TOKEN || process.env.VITE_TURSO_AUTH_TOKEN;
+      }
+    } catch (e) {}
   }
-  return undefined;
+
+  return { url, token };
 };
 
-const TURSO_DATABASE_URL = getEnv('NEXT_PUBLIC_TURSO_DATABASE_URL');
-const TURSO_AUTH_TOKEN = getEnv('NEXT_PUBLIC_TURSO_AUTH_TOKEN');
+const { url, token } = getEnvConfig();
 
 export const isDbConfigured = () => {
-  return !!TURSO_DATABASE_URL && !!TURSO_AUTH_TOKEN;
+  return !!url && !!token;
 };
 
-// Initialize the client safely.
-// If config is missing, we use a placeholder URL to prevent the client from crashing on init.
-// The app checks isDbConfigured() before actually using this client.
+// Initialize the client.
+// We use placeholders if config is missing to prevent immediate crash, 
+// but isDbConfigured() will return false, preventing actual queries.
 export const db = createClient({
-  url: TURSO_DATABASE_URL || "libsql://placeholder-db.turso.io",
-  authToken: TURSO_AUTH_TOKEN || "placeholder-token",
+  url: url || "libsql://placeholder.turso.io",
+  authToken: token || "placeholder-token",
 });
