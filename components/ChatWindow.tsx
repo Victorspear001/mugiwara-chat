@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, MoreVertical, Paperclip, Smile, Mic, Send } from 'lucide-react';
 import { Contact, Message } from '../types';
-import { getMessages, sendMessage, simulateReply } from '../services/mockDb';
+import { getMessages, sendMessage, getCurrentUser } from '../services/dbService';
 
 interface ChatWindowProps {
   contact: Contact;
-  onBack: () => void; // For mobile view handling
+  onBack: () => void;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
@@ -13,15 +13,24 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const currentUser = getCurrentUser();
 
-  // Load messages when contact changes
+  // Load messages & Poll
   useEffect(() => {
-    const loadMessages = async () => {
-      const msgs = await getMessages(contact.id);
+    if (!currentUser) return;
+
+    const fetchMsgs = async () => {
+      const msgs = await getMessages(currentUser.phone, contact.phone);
       setMessages(msgs);
     };
-    loadMessages();
-  }, [contact.id]);
+
+    fetchMsgs();
+    
+    // Simple Polling every 3 seconds for new messages
+    const interval = setInterval(fetchMsgs, 3000);
+    return () => clearInterval(interval);
+
+  }, [contact.phone, currentUser]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -29,34 +38,32 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!inputText.trim() || isSending) return;
+    if (!inputText.trim() || isSending || !currentUser) return;
     
     setIsSending(true);
+    const textToSend = inputText;
+    setInputText(''); // Clear immediately for UX
+
     try {
       // Optimistic update
       const tempId = Date.now().toString();
       const optimisticMsg: Message = {
         id: tempId,
-        contactId: contact.id,
-        text: inputText,
-        sender: 'me',
+        senderPhone: currentUser.phone,
+        receiverPhone: contact.phone,
+        text: textToSend,
         timestamp: Date.now(),
-        status: 'sent'
+        status: 'sent',
+        isMe: true
       };
       setMessages(prev => [...prev, optimisticMsg]);
-      setInputText('');
 
       // Actual send
-      await sendMessage(contact.id, optimisticMsg.text);
-      
-      // Simulate a reply for interactivity
-      setTimeout(async () => {
-         const reply = await simulateReply(contact.id);
-         setMessages(prev => [...prev, reply]);
-      }, 1000);
-
+      await sendMessage(currentUser.phone, contact.phone, textToSend);
+      // We let the next poll sync the actual ID and status
     } catch (error) {
       console.error("Failed to send", error);
+      // In a real app, show error state on message
     } finally {
       setIsSending(false);
     }
@@ -87,7 +94,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
       {/* Chat Header */}
       <div className="relative z-10 flex items-center justify-between px-4 py-2.5 bg-[#f0f2f5] border-b border-[#d1d7db]">
         <div className="flex items-center">
-          {/* Back Button (Mobile only logic handled by CSS usually, but here explicit prop) */}
           <button onClick={onBack} className="mr-3 md:hidden text-[#54656f]">
              <svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" version="1.1" x="0px" y="0px" enableBackground="new 0 0 24 24"><path fill="currentColor" d="M12,4l1.4,1.4L7.8,11H20v2H7.8l5.6,5.6L12,20l-8-8L12,4z"></path></svg>
           </button>
@@ -97,7 +103,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
           </div>
           <div className="flex flex-col justify-center cursor-pointer">
             <h2 className="text-[#111b21] text-[16px] font-normal leading-tight">{contact.name}</h2>
-            <span className="text-[13px] text-[#667781]">online</span>
+            <span className="text-[13px] text-[#667781]">{contact.phone}</span>
           </div>
         </div>
         <div className="flex items-center gap-5 text-[#54656f]">
@@ -109,7 +115,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
       {/* Message Area */}
       <div className="relative z-10 flex-1 overflow-y-auto p-4 custom-scrollbar">
         <div className="flex flex-col space-y-2 pb-2">
-            {/* Encryption Notice */}
             <div className="flex justify-center my-4">
                 <div className="bg-[#ffeecd] text-[#54656f] text-[12.5px] px-3 py-1.5 rounded-lg shadow-sm text-center max-w-[90%]">
                     🔒 Messages are end-to-end encrypted. No one outside of this chat, not even Mugiwara Chat, can read or listen to them.
@@ -117,24 +122,23 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
             </div>
 
             {messages.map((msg, idx) => {
-                const isMe = msg.sender === 'me';
-                const isChain = idx > 0 && messages[idx - 1].sender === msg.sender;
+                const isChain = idx > 0 && messages[idx - 1].isMe === msg.isMe;
                 
                 return (
                     <div 
                         key={msg.id} 
-                        className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${isChain ? 'mt-0.5' : 'mt-2'}`}
+                        className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'} ${isChain ? 'mt-0.5' : 'mt-2'}`}
                     >
                         <div 
                             className={`
                                 relative max-w-[85%] md:max-w-[65%] rounded-lg px-2 py-1.5 text-[14.2px] shadow-sm
-                                ${isMe ? 'bg-[#d9fdd3] rounded-tr-none' : 'bg-white rounded-tl-none'}
+                                ${msg.isMe ? 'bg-[#d9fdd3] rounded-tr-none' : 'bg-white rounded-tl-none'}
                             `}
                         >
-                             {/* Tail SVG - simplified approximation */}
+                             {/* Tail SVG */}
                              {!isChain && (
-                                <span className={`absolute top-0 ${isMe ? '-right-[8px] text-[#d9fdd3]' : '-left-[8px] text-white'}`}>
-                                    <svg viewBox="0 0 8 13" height="13" width="8" preserveAspectRatio="xMidYMid meet" className={isMe ? "" : "transform scale-x-[-1]"}>
+                                <span className={`absolute top-0 ${msg.isMe ? '-right-[8px] text-[#d9fdd3]' : '-left-[8px] text-white'}`}>
+                                    <svg viewBox="0 0 8 13" height="13" width="8" preserveAspectRatio="xMidYMid meet" className={msg.isMe ? "" : "transform scale-x-[-1]"}>
                                         <path opacity="0.13" fill="#0000000" d="M1.533,3.568L8,12.193V1H2.812 C1.042,1,0.474,2.156,1.533,3.568z"></path>
                                         <path fill="currentColor" d="M1.533,2.568L8,11.193V0L2.812,0C1.042,0,0.474,1.156,1.533,2.568z"></path>
                                     </svg>
@@ -148,7 +152,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
                                 <span className="text-[11px] text-[#667781] min-w-[3rem] text-right">
                                     {formatTime(msg.timestamp)}
                                 </span>
-                                {isMe && (
+                                {msg.isMe && (
                                     <span className={`text-[15px] ${msg.status === 'read' ? 'text-[#53bdeb]' : 'text-[#667781]'}`}>
                                         <svg viewBox="0 0 16 11" height="11" width="16" preserveAspectRatio="xMidYMid meet" version="1.1" x="0px" y="0px" enableBackground="new 0 0 16 11">
                                             <path fill="currentColor" d="M10.041,10.281L10.041,10.281l5.772-8.527c0.234-0.371,0.122-0.865-0.25-1.099 c-0.37-0.233-0.864-0.121-1.098,0.25L9.12,8.547L6.464,5.882C6.222,5.65,5.839,5.66,5.607,5.903c-0.231,0.243-0.222,0.626,0.021,0.858 l3.313,3.22c0.26,0.255,0.686,0.255,0.957-0.012C10.016,10.088,10.033,10.187,10.041,10.281z M4.654,9.652l-0.563-0.548 l3.179-3.189c0.232-0.243,0.241-0.626,0.009-0.858c-0.231-0.232-0.605-0.242-0.847-0.01L2.344,9.157L0.469,7.323 C0.228,7.09,0.155,6.708,0.165,6.465c0.231-0.242,0.605-0.233,0.847-0.011l2.5,2.443L4.654,9.652z"></path>
@@ -181,7 +185,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
                 placeholder="Type a message"
                 className="w-full bg-transparent border-none outline-none text-[#111b21] resize-none max-h-[100px] overflow-y-auto custom-scrollbar leading-[1.4]"
                 rows={1}
-                style={{ height: '24px' }} // In a real app, auto-grow logic here
+                style={{ height: '24px' }}
             />
         </div>
 
