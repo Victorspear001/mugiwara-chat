@@ -6,12 +6,21 @@ const CURRENT_USER_KEY = 'mugiwara_user';
 // --- AUTHENTICATION ---
 
 export const getCurrentUser = (): User | null => {
-  const stored = localStorage.getItem(CURRENT_USER_KEY);
-  return stored ? JSON.parse(stored) : null;
+  try {
+    const stored = localStorage.getItem(CURRENT_USER_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch (e) {
+    console.warn("Could not access localStorage:", e);
+    return null;
+  }
 };
 
 export const logoutUser = () => {
-  localStorage.removeItem(CURRENT_USER_KEY);
+  try {
+    localStorage.removeItem(CURRENT_USER_KEY);
+  } catch (e) {
+    console.error("Logout error:", e);
+  }
   window.location.reload();
 };
 
@@ -99,23 +108,37 @@ export const getConversations = async (myPhone: string): Promise<Contact[]> => {
       const otherPhone = sender === myPhone ? receiver : sender;
 
       if (!contactsMap.has(otherPhone)) {
-        const userRes = await db.execute({
-            sql: "SELECT name, avatar FROM users WHERE phone = ?",
-            args: [otherPhone]
-        });
-        
-        const name = userRes.rows.length ? (userRes.rows[0].name as string) : otherPhone;
-        const avatar = userRes.rows.length ? (userRes.rows[0].avatar as string) : `https://ui-avatars.com/api/?name=${otherPhone}`;
+        // Fetch user details only if not already cached in this loop
+        try {
+            const userRes = await db.execute({
+                sql: "SELECT name, avatar FROM users WHERE phone = ?",
+                args: [otherPhone]
+            });
+            
+            const name = userRes.rows.length ? (userRes.rows[0].name as string) : otherPhone;
+            const avatar = userRes.rows.length ? (userRes.rows[0].avatar as string) : `https://ui-avatars.com/api/?name=${otherPhone}`;
 
-        contactsMap.set(otherPhone, {
-          phone: otherPhone,
-          name: name,
-          avatar: avatar,
-          lastMessage: row.text as string,
-          timestamp: Number(row.timestamp),
-          lastMessageTime: new Date(Number(row.timestamp)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-          unreadCount: 0 
-        });
+            contactsMap.set(otherPhone, {
+              phone: otherPhone,
+              name: name,
+              avatar: avatar,
+              lastMessage: row.text as string,
+              timestamp: Number(row.timestamp),
+              lastMessageTime: new Date(Number(row.timestamp)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+              unreadCount: 0 
+            });
+        } catch (innerErr) {
+            console.warn("Failed to fetch user details for", otherPhone, innerErr);
+             contactsMap.set(otherPhone, {
+              phone: otherPhone,
+              name: otherPhone,
+              avatar: `https://ui-avatars.com/api/?name=${otherPhone}`,
+              lastMessage: row.text as string,
+              timestamp: Number(row.timestamp),
+              lastMessageTime: new Date(Number(row.timestamp)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+              unreadCount: 0 
+            });
+        }
       }
     }
 

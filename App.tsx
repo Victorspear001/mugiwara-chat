@@ -4,7 +4,6 @@ import { ChatWindow } from './components/ChatWindow';
 import { Login } from './components/Login';
 import { Contact, User } from './types';
 import { getConversations, getCurrentUser } from './services/dbService';
-import { Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -14,11 +13,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const init = async () => {
-      const storedUser = getCurrentUser();
-      if (storedUser) {
-        setUser(storedUser);
+      try {
+        const storedUser = getCurrentUser();
+        if (storedUser) {
+          setUser(storedUser);
+        }
+      } catch (error) {
+        console.error("Failed to initialize app:", error);
+      } finally {
+        // Always stop loading, even if there was an error reading user data
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     init();
   }, []);
@@ -41,7 +46,14 @@ const App: React.FC = () => {
   }, [user]);
 
   const handleLoginSuccess = () => {
-    setUser(getCurrentUser());
+    try {
+        const currentUser = getCurrentUser();
+        if (currentUser) {
+            setUser(currentUser);
+        }
+    } catch (e) {
+        console.error("Login success handler error:", e);
+    }
   };
 
   const handleSelectContact = (contact: Contact) => {

@@ -10,7 +10,7 @@ export default defineConfig({
     host: true, // Expose to local network
   },
   build: {
-    target: 'esnext',
+    target: 'es2020', // Improved compatibility for mobile devices
     outDir: 'dist',
     sourcemap: false,
   }
