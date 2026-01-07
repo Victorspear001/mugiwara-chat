@@ -10,50 +10,40 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Lato:wght@400;700&display=swap" rel="stylesheet">
     <style>
       :root {
-        --pirate-wood: #2c241b;
-        --pirate-wood-light: #3e3226;
-        --pirate-gold: #bf9b30;
-        --pirate-gold-dim: #8c701c;
-        --pirate-parchment: #d4c5a9;
-        --pirate-paper: #eaddcf;
-        --pirate-red: #8a1c1c;
-        --pirate-ocean: #1a3c40;
+        --pirate-bg: #e6e2d3; /* Light Sand */
+        --pirate-panel: #fdfbf7; /* Off-white parchment */
+        --pirate-border: #d4c5a9; /* Soft border */
+        --pirate-text: #3e3226; /* Dark Brown Text */
+        --pirate-accent: #bf9b30; /* Gold */
+        --pirate-blue: #2c5f63; /* Ocean Teal */
+        --pirate-green: #e1ffc7; /* Message Bubble Green */
       }
       body {
         font-family: 'Lato', sans-serif;
-        background-color: #1a1a1a;
-        background-image: url("https://www.transparenttextures.com/patterns/wood-pattern.png");
+        background-color: #dcd6bc;
+        background-image: url("https://www.transparenttextures.com/patterns/dust.png");
         margin: 0;
         overflow: hidden;
+        color: var(--pirate-text);
       }
       h1, h2, h3, .pirate-font {
         font-family: 'Cinzel Decorative', cursive;
       }
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-thumb {
-        background-color: var(--pirate-gold);
-        border-radius: 4px;
-        border: 2px solid var(--pirate-wood);
+        background-color: #c0b399;
+        border-radius: 3px;
       }
       ::-webkit-scrollbar-track {
-        background: var(--pirate-wood);
+        background: transparent;
       }
       .h-screen-dynamic {
         height: 100vh;
         height: 100dvh;
-      }
-      /* Parchment Texture Class */
-      .bg-parchment {
-        background-color: var(--pirate-parchment);
-        background-image: url("https://www.transparenttextures.com/patterns/aged-paper.png");
-      }
-      .bg-wood {
-        background-color: var(--pirate-wood);
-        background-image: url("https://www.transparenttextures.com/patterns/wood-pattern.png");
       }
     </style>
 <script type="importmap">
