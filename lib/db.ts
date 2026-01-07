@@ -1,36 +1,28 @@
-
 import { createClient } from "@libsql/client";
 
 /**
- * HARDCODED DATABASE CREDENTIALS
- * Paste your Turso values directly below.
+ * DATABASE CONFIGURATION
+ * These credentials are used for persistent, multi-device chat syncing.
  */
-// Added explicit string typing to prevent narrowing to 'never' literal type
-const TURSO_DATABASE_URL: string = " libsql://mugiwara-chat-victorspear001.aws-ap-south-1.turso.io"; 
-// Added explicit string typing to prevent narrowing to 'never' literal type
+const TURSO_DATABASE_URL: string = "libsql://mugiwara-chat-victorspear001.aws-ap-south-1.turso.io"; 
 const TURSO_AUTH_TOKEN: string = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3Njc3MTA1MTMsImlkIjoiN2RkYzM0NzEtYzIyYi00NDI0LWFjZDMtZDkxMmYzOTk5NTRmIiwicmlkIjoiN2FhMWYwOWEtNDYxMS00Yzk4LWIwMTQtM2YxMDY5YjM2YzRmIn0.qzsYfQKnDmsGnAhnWdvEEgIpXoXeqFCdpOQrj8M1KkFCMizepni-oKngxp7r7HVoh8kZIgVpiwwDXq7f-bK4Bg";
 
 /**
- * Checks if the Turso database configuration is present.
+ * Validates the database configuration.
  */
 export const isDbConfigured = () => {
-  const configured = 
-    !!TURSO_DATABASE_URL && 
-    TURSO_DATABASE_URL !== "" && 
-    !TURSO_DATABASE_URL.includes("YOUR_") &&
-    !!TURSO_AUTH_TOKEN && 
-    TURSO_AUTH_TOKEN !== "" &&
-    !TURSO_AUTH_TOKEN.includes("YOUR_");
-
-  if (!configured) {
-    console.warn("Turso credentials not found in lib/db.ts. App running in local-only mode.");
+  const urlValid = !!TURSO_DATABASE_URL && !TURSO_DATABASE_URL.includes("YOUR_");
+  const tokenValid = !!TURSO_AUTH_TOKEN && !TURSO_AUTH_TOKEN.includes("YOUR_");
+  
+  if (!urlValid || !tokenValid) {
+    console.warn("Database configuration incomplete. Persistence disabled.");
+    return false;
   }
-  return configured;
+  return true;
 };
 
-// Initialize the client.
-// We use placeholders if config is missing to prevent immediate crash.
+// Initialize the Turso client
 export const db = createClient({
-  url: isDbConfigured() ? TURSO_DATABASE_URL : "libsql://placeholder.turso.io",
-  authToken: isDbConfigured() ? TURSO_AUTH_TOKEN : "placeholder-token",
+  url: isDbConfigured() ? TURSO_DATABASE_URL.trim() : "libsql://placeholder.turso.io",
+  authToken: isDbConfigured() ? TURSO_AUTH_TOKEN.trim() : "placeholder-token",
 });
