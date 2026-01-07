@@ -1,28 +1,36 @@
 
 import { createClient } from "@libsql/client";
 
-// In Vite, we use import.meta.env to access variables.
-// envPrefix in vite.config.ts allows NEXT_PUBLIC_ variables from Vercel to be seen here.
-
-// Fix: Cast import.meta to any to resolve 'env' property not existing on type 'ImportMeta'
-const url = ((import.meta as any).env.NEXT_PUBLIC_TURSO_DATABASE_URL as string) || ((import.meta as any).env.VITE_TURSO_DATABASE_URL as string);
-// Fix: Cast import.meta to any to resolve 'env' property not existing on type 'ImportMeta'
-const token = ((import.meta as any).env.NEXT_PUBLIC_TURSO_AUTH_TOKEN as string) || ((import.meta as any).env.VITE_TURSO_AUTH_TOKEN as string);
+/**
+ * HARDCODED DATABASE CREDENTIALS
+ * Paste your Turso values directly below.
+ */
+// Added explicit string typing to prevent narrowing to 'never' literal type
+const TURSO_DATABASE_URL: string = " libsql://mugiwara-chat-victorspear001.aws-ap-south-1.turso.io"; 
+// Added explicit string typing to prevent narrowing to 'never' literal type
+const TURSO_AUTH_TOKEN: string = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3Njc3MTA1MTMsImlkIjoiN2RkYzM0NzEtYzIyYi00NDI0LWFjZDMtZDkxMmYzOTk5NTRmIiwicmlkIjoiN2FhMWYwOWEtNDYxMS00Yzk4LWIwMTQtM2YxMDY5YjM2YzRmIn0.qzsYfQKnDmsGnAhnWdvEEgIpXoXeqFCdpOQrj8M1KkFCMizepni-oKngxp7r7HVoh8kZIgVpiwwDXq7f-bK4Bg";
 
 /**
  * Checks if the Turso database configuration is present.
  */
 export const isDbConfigured = () => {
-  const configured = !!url && url !== "" && !!token && token !== "";
+  const configured = 
+    !!TURSO_DATABASE_URL && 
+    TURSO_DATABASE_URL !== "" && 
+    !TURSO_DATABASE_URL.includes("YOUR_") &&
+    !!TURSO_AUTH_TOKEN && 
+    TURSO_AUTH_TOKEN !== "" &&
+    !TURSO_AUTH_TOKEN.includes("YOUR_");
+
   if (!configured) {
-    console.warn("Database credentials missing. App running in local-only mode.");
+    console.warn("Turso credentials not found in lib/db.ts. App running in local-only mode.");
   }
   return configured;
 };
 
-// Initialize the client. 
-// We use a try-catch or safe defaults to prevent the entire JS bundle from failing to load.
+// Initialize the client.
+// We use placeholders if config is missing to prevent immediate crash.
 export const db = createClient({
-  url: url || "libsql://placeholder-for-build.turso.io",
-  authToken: token || "placeholder-token",
+  url: isDbConfigured() ? TURSO_DATABASE_URL : "libsql://placeholder.turso.io",
+  authToken: isDbConfigured() ? TURSO_AUTH_TOKEN : "placeholder-token",
 });
