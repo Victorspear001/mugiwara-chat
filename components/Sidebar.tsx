@@ -1,19 +1,21 @@
 import React, { useState, useMemo } from 'react';
 import { Search, MoreVertical, MessageSquare, LogOut, Loader2, UserPlus } from 'lucide-react';
 import { Contact, User } from '../types';
-import { searchUserByPhone, getCurrentUser, logoutUser } from '../services/dbService';
+import { searchUserByPhone, getCurrentUser } from '../services/dbService';
 
 interface SidebarProps {
   contacts: Contact[];
   onSelectContact: (contact: Contact) => void;
+  onLogout: () => void;
   selectedContactId?: string;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ contacts, onSelectContact, selectedContactId }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ contacts, onSelectContact, onLogout, selectedContactId }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewChatInput, setShowNewChatInput] = useState(false);
   const [newChatPhone, setNewChatPhone] = useState('');
   const [isSearchingUser, setIsSearchingUser] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const currentUser = getCurrentUser();
 
   const filteredContacts = useMemo(() => {
@@ -47,23 +49,74 @@ export const Sidebar: React.FC<SidebarProps> = ({ contacts, onSelectContact, sel
     setIsSearchingUser(false);
   };
 
+  const handleLogoutClick = () => {
+      if (window.confirm("Are you sure you want to log out?")) {
+          onLogout();
+      }
+      setShowMenu(false);
+  };
+
   return (
     <div className="flex flex-col h-full bg-white border-r border-[#e9edef] w-full md:w-[350px] lg:w-[450px] flex-shrink-0">
       {/* Sidebar Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-[#f0f2f5] border-b border-[#d1d7db]">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#f0f2f5] border-b border-[#d1d7db] h-[60px]">
         <div className="flex items-center gap-2 cursor-pointer" title="Your Profile">
-            <div className="w-10 h-10 rounded-full overflow-hidden">
-                <img src={currentUser?.avatar} alt="Me" className="w-full h-full object-cover" />
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-300">
+                {currentUser?.avatar ? (
+                    <img src={currentUser.avatar} alt="Me" className="w-full h-full object-cover" />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold">
+                        {currentUser?.name?.charAt(0) || '?'}
+                    </div>
+                )}
             </div>
-            <span className="text-sm font-semibold text-[#41525d] hidden sm:block">{currentUser?.name}</span>
+            <span className="text-sm font-semibold text-[#41525d] hidden sm:block truncate max-w-[120px]">{currentUser?.name}</span>
         </div>
-        <div className="flex gap-3 text-[#54656f]">
+        
+        {/* Actions & Menu */}
+        <div className="flex gap-3 text-[#54656f] items-center relative z-20">
           <button title="New Chat" onClick={() => setShowNewChatInput(!showNewChatInput)}>
             <MessageSquare size={20} />
           </button>
-          <button title="Logout" onClick={logoutUser}>
-            <LogOut size={20} />
-          </button>
+          
+          <div className="relative">
+            <button 
+                title="Menu" 
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(!showMenu);
+                }}
+                className={`p-1.5 rounded-full transition-colors ${showMenu ? 'bg-black/10' : ''}`}
+            >
+                <MoreVertical size={20} />
+            </button>
+
+            {/* Dropdown Menu */}
+            {showMenu && (
+                <>
+                    <div className="fixed inset-0 z-10 cursor-default" onClick={() => setShowMenu(false)}></div>
+                    <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-md shadow-[0_2px_5px_0_rgba(0,0,0,0.26),0_2px_10px_0_rgba(0,0,0,0.16)] z-30 py-2 animate-in fade-in zoom-in-95 duration-75 origin-top-right">
+                        <button 
+                            className="w-full text-left px-6 py-3 hover:bg-[#f0f2f5] text-[#3b4a54] text-[14.5px] leading-5 transition-colors flex items-center gap-2"
+                            onClick={() => {
+                                setShowNewChatInput(true);
+                                setShowMenu(false);
+                            }}
+                        >
+                            <MessageSquare size={16} />
+                            New Chat
+                        </button>
+                        <button 
+                            className="w-full text-left px-6 py-3 hover:bg-[#f0f2f5] text-[#3b4a54] text-[14.5px] leading-5 transition-colors flex items-center gap-2"
+                            onClick={handleLogoutClick}
+                        >
+                            <LogOut size={16} />
+                            Log out
+                        </button>
+                    </div>
+                </>
+            )}
+          </div>
         </div>
       </div>
 

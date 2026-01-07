@@ -49,7 +49,7 @@ export const logoutUser = () => {
   } catch (e) {
     console.error("Logout error:", e);
   }
-  window.location.reload();
+  // We do not force reload here anymore, letting App.tsx handle state transition
 };
 
 export const loginOrRegister = async (phone: string, name: string): Promise<User> => {

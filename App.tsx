@@ -3,7 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { ChatWindow } from './components/ChatWindow';
 import { Login } from './components/Login';
 import { Contact, User } from './types';
-import { getConversations, getCurrentUser, initializeSchema } from './services/dbService';
+import { getConversations, getCurrentUser, initializeSchema, logoutUser } from './services/dbService';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -59,6 +59,15 @@ const App: React.FC = () => {
     }
   };
 
+  const handleLogout = () => {
+      // Clear local storage via service
+      logoutUser();
+      // Clear React State immediately to update UI without waiting for reload
+      setUser(null);
+      setSelectedContact(null);
+      setContacts([]);
+  };
+
   const handleSelectContact = (contact: Contact) => {
     setSelectedContact(contact);
   };
@@ -100,6 +109,7 @@ const App: React.FC = () => {
           <Sidebar 
             contacts={contacts} 
             onSelectContact={handleSelectContact} 
+            onLogout={handleLogout}
             selectedContactId={selectedContact?.phone}
           />
         </div>
