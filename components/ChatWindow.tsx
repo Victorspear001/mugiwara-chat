@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, MoreVertical, Paperclip, Smile, Mic, Send } from 'lucide-react';
+import { Search, MoreVertical, Paperclip, Smile, Send, Image as ImageIcon, X } from 'lucide-react';
 import { Contact, Message } from '../types';
 import { getMessages, sendMessage, getCurrentUser } from '../services/dbService';
 
@@ -8,11 +8,15 @@ interface ChatWindowProps {
   onBack: () => void;
 }
 
+const PIRATE_EMOJIS = ["🏴‍☠️", "⚓", "🦜", "🍺", "⚔️", "💣", "💰", "🗺️", "🌊", "☠️", "🍖", "🏝️", "⛵", "🪙", "🦈", "📜"];
+
 export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const currentUser = getCurrentUser();
 
   // Load messages & Poll
@@ -25,24 +29,22 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
     };
 
     fetchMsgs();
-    
-    // Simple Polling every 3 seconds for new messages
     const interval = setInterval(fetchMsgs, 3000);
     return () => clearInterval(interval);
 
   }, [contact.phone, currentUser]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!inputText.trim() || isSending || !currentUser) return;
+  const handleSend = async (textOverride?: string) => {
+    const content = textOverride || inputText;
+    if (!content.trim() || isSending || !currentUser) return;
     
     setIsSending(true);
-    const textToSend = inputText;
-    setInputText(''); // Clear immediately for UX
+    setInputText(''); 
+    setShowEmoji(false);
 
     try {
       // Optimistic update
@@ -51,19 +53,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
         id: tempId,
         senderPhone: currentUser.phone,
         receiverPhone: contact.phone,
-        text: textToSend,
+        text: content,
         timestamp: Date.now(),
         status: 'sent',
         isMe: true
       };
       setMessages(prev => [...prev, optimisticMsg]);
 
-      // Actual send
-      await sendMessage(currentUser.phone, contact.phone, textToSend);
-      // We let the next poll sync the actual ID and status
+      await sendMessage(currentUser.phone, contact.phone, content);
     } catch (error) {
       console.error("Failed to send", error);
-      // In a real app, show error state on message
     } finally {
       setIsSending(false);
     }
@@ -76,87 +75,112 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
     }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (file.size > 1024 * 1024) { // 1MB limit for this demo
+          alert("That cargo is too heavy! (Max 1MB)");
+          return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+          const base64 = reader.result as string;
+          handleSend(base64);
+      };
+      reader.readAsDataURL(file);
+      
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const addEmoji = (emoji: string) => {
+      setInputText(prev => prev + emoji);
+  };
+
   const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const renderMessageContent = (text: string) => {
+      if (text.startsWith('data:image')) {
+          return (
+              <img src={text} alt="Shared" className="max-w-full rounded-md border border-[#8c7a6b] max-h-[300px] object-cover" />
+          );
+      }
+      return <div className="break-words whitespace-pre-wrap font-serif text-[15px]">{text}</div>;
+  };
+
   return (
-    <div className="flex flex-col h-full bg-[#efeae2] relative w-full">
-      {/* Background Pattern Overlay */}
+    <div className="flex flex-col h-full bg-[#2c241b] relative w-full">
+      {/* Background Texture */}
       <div 
-        className="absolute inset-0 opacity-40 pointer-events-none"
+        className="absolute inset-0 opacity-10 pointer-events-none"
         style={{
-          backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
-          backgroundRepeat: 'repeat'
+          backgroundImage: "url('https://www.transparenttextures.com/patterns/black-scales.png')",
         }}
       />
 
-      {/* Chat Header */}
-      <div className="relative z-10 flex items-center justify-between px-4 py-2.5 bg-[#f0f2f5] border-b border-[#d1d7db]">
+      {/* Header */}
+      <div className="relative z-10 flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-[#bf9b30] shadow-xl">
         <div className="flex items-center">
-          <button onClick={onBack} className="mr-3 md:hidden text-[#54656f]">
-             <svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" version="1.1" x="0px" y="0px" enableBackground="new 0 0 24 24"><path fill="currentColor" d="M12,4l1.4,1.4L7.8,11H20v2H7.8l5.6,5.6L12,20l-8-8L12,4z"></path></svg>
+          <button onClick={onBack} className="mr-3 md:hidden text-[#bf9b30]">
+             <X size={24}/>
           </button>
           
-          <div className="w-10 h-10 rounded-full overflow-hidden mr-3 cursor-pointer">
-            <img src={contact.avatar} alt={contact.name} className="w-full h-full object-cover" />
+          <div className="w-10 h-10 rounded-full border border-[#bf9b30] overflow-hidden mr-3 bg-[#2c241b]">
+            <img src={contact.avatar} alt={contact.name} className="w-full h-full object-cover opacity-90" />
           </div>
-          <div className="flex flex-col justify-center cursor-pointer">
-            <h2 className="text-[#111b21] text-[16px] font-normal leading-tight">{contact.name}</h2>
-            <span className="text-[13px] text-[#667781]">{contact.phone}</span>
+          <div className="flex flex-col justify-center">
+            <h2 className="text-[#d4c5a9] text-lg pirate-font leading-tight">{contact.name}</h2>
+            <span className="text-[12px] text-[#8c7a6b] uppercase tracking-wider">Wanted Alive</span>
           </div>
         </div>
-        <div className="flex items-center gap-5 text-[#54656f]">
+        <div className="flex items-center gap-4 text-[#bf9b30]">
           <button><Search size={20} /></button>
           <button><MoreVertical size={20} /></button>
         </div>
       </div>
 
       {/* Message Area */}
-      <div className="relative z-10 flex-1 overflow-y-auto p-4 custom-scrollbar">
-        <div className="flex flex-col space-y-2 pb-2">
+      <div className="relative z-10 flex-1 overflow-y-auto p-4 custom-scrollbar bg-parchment/10">
+        <div className="flex flex-col space-y-4 pb-2">
+            
+            {/* Encryption Notice */}
             <div className="flex justify-center my-4">
-                <div className="bg-[#ffeecd] text-[#54656f] text-[12.5px] px-3 py-1.5 rounded-lg shadow-sm text-center max-w-[90%]">
-                    🔒 Messages are end-to-end encrypted. No one outside of this chat, not even Mugiwara Chat, can read or listen to them.
+                <div className="bg-[#bf9b30]/20 border border-[#bf9b30]/50 text-[#d4c5a9] text-xs px-4 py-2 rounded shadow-sm text-center max-w-[90%] font-serif italic">
+                    ⚓ Secure Channel: Messages be sealed with wax and magic. Only ye and yer matey can read 'em.
                 </div>
             </div>
 
             {messages.map((msg, idx) => {
-                const isChain = idx > 0 && messages[idx - 1].isMe === msg.isMe;
+                const isMe = msg.isMe;
                 
                 return (
                     <div 
                         key={msg.id} 
-                        className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'} ${isChain ? 'mt-0.5' : 'mt-2'}`}
+                        className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
                     >
                         <div 
                             className={`
-                                relative max-w-[85%] md:max-w-[65%] rounded-lg px-2 py-1.5 text-[14.2px] shadow-sm
-                                ${msg.isMe ? 'bg-[#d9fdd3] rounded-tr-none' : 'bg-white rounded-tl-none'}
+                                relative max-w-[85%] md:max-w-[65%] px-3 py-2 shadow-md
+                                ${isMe 
+                                    ? 'bg-[#3e3226] text-[#d4c5a9] rounded-l-lg rounded-br-lg border border-[#bf9b30]/50' 
+                                    : 'bg-parchment text-[#2c241b] rounded-r-lg rounded-bl-lg border border-[#8c7a6b]'}
                             `}
                         >
-                             {/* Tail SVG */}
-                             {!isChain && (
-                                <span className={`absolute top-0 ${msg.isMe ? '-right-[8px] text-[#d9fdd3]' : '-left-[8px] text-white'}`}>
-                                    <svg viewBox="0 0 8 13" height="13" width="8" preserveAspectRatio="xMidYMid meet" className={msg.isMe ? "" : "transform scale-x-[-1]"}>
-                                        <path opacity="0.13" fill="#0000000" d="M1.533,3.568L8,12.193V1H2.812 C1.042,1,0.474,2.156,1.533,3.568z"></path>
-                                        <path fill="currentColor" d="M1.533,2.568L8,11.193V0L2.812,0C1.042,0,0.474,1.156,1.533,2.568z"></path>
-                                    </svg>
-                                </span>
-                             )}
-
-                            <div className="px-1 pt-1 pb-4 text-[#111b21] break-words whitespace-pre-wrap">
-                                {msg.text}
+                            <div className="mb-1">
+                                {renderMessageContent(msg.text)}
                             </div>
-                            <div className="absolute right-2 bottom-1 flex items-center gap-1">
-                                <span className="text-[11px] text-[#667781] min-w-[3rem] text-right">
+                            <div className={`flex items-center gap-1 justify-end mt-1 ${isMe ? 'opacity-70' : 'opacity-50'}`}>
+                                <span className="text-[10px] uppercase font-bold tracking-wider">
                                     {formatTime(msg.timestamp)}
                                 </span>
-                                {msg.isMe && (
-                                    <span className={`text-[15px] ${msg.status === 'read' ? 'text-[#53bdeb]' : 'text-[#667781]'}`}>
-                                        <svg viewBox="0 0 16 11" height="11" width="16" preserveAspectRatio="xMidYMid meet" version="1.1" x="0px" y="0px" enableBackground="new 0 0 16 11">
-                                            <path fill="currentColor" d="M10.041,10.281L10.041,10.281l5.772-8.527c0.234-0.371,0.122-0.865-0.25-1.099 c-0.37-0.233-0.864-0.121-1.098,0.25L9.12,8.547L6.464,5.882C6.222,5.65,5.839,5.66,5.607,5.903c-0.231,0.243-0.222,0.626,0.021,0.858 l3.313,3.22c0.26,0.255,0.686,0.255,0.957-0.012C10.016,10.088,10.033,10.187,10.041,10.281z M4.654,9.652l-0.563-0.548 l3.179-3.189c0.232-0.243,0.241-0.626,0.009-0.858c-0.231-0.232-0.605-0.242-0.847-0.01L2.344,9.157L0.469,7.323 C0.228,7.09,0.155,6.708,0.165,6.465c0.231-0.242,0.605-0.233,0.847-0.011l2.5,2.443L4.654,9.652z"></path>
-                                        </svg>
+                                {isMe && (
+                                    <span className={msg.status === 'read' ? 'text-[#bf9b30]' : 'text-gray-400'}>
+                                        {/* Double Check Icon */}
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                     </span>
                                 )}
                             </div>
@@ -169,37 +193,68 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ contact, onBack }) => {
       </div>
 
       {/* Input Area */}
-      <div className="relative z-10 px-4 py-2 bg-[#f0f2f5] border-t border-[#d1d7db] flex items-end gap-2">
-        <button className="text-[#54656f] p-1 mb-1 hover:bg-gray-200 rounded-full transition-colors">
-            <Smile size={24} />
-        </button>
-        <button className="text-[#54656f] p-1 mb-1 hover:bg-gray-200 rounded-full transition-colors">
-            <Paperclip size={24} />
-        </button>
+      <div className="relative z-10 px-4 py-3 bg-[#2c241b] border-t-2 border-[#bf9b30] flex items-end gap-2 shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
         
-        <div className="flex-1 bg-white rounded-lg min-h-[42px] flex items-center px-4 py-2 my-1">
+        <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            className="hidden" 
+            accept="image/*"
+        />
+
+        {/* Action Buttons */}
+        <div className="flex gap-1 mb-1">
+            <button 
+                onClick={() => setShowEmoji(!showEmoji)}
+                className={`p-2 rounded-full transition-colors ${showEmoji ? 'text-[#bf9b30] bg-black/20' : 'text-[#8c7a6b] hover:text-[#d4c5a9]'}`}
+            >
+                <Smile size={24} />
+            </button>
+            <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="text-[#8c7a6b] p-2 hover:text-[#d4c5a9] rounded-full transition-colors"
+                title="Send Painting"
+            >
+                <ImageIcon size={24} />
+            </button>
+        </div>
+        
+        {/* Text Input */}
+        <div className="flex-1 bg-[#1a1a1a] border border-[#5c4d3c] rounded-lg min-h-[42px] flex items-center px-4 py-2 my-1 focus-within:border-[#bf9b30] transition-colors">
             <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Type a message"
-                className="w-full bg-transparent border-none outline-none text-[#111b21] resize-none max-h-[100px] overflow-y-auto custom-scrollbar leading-[1.4]"
+                placeholder="Write in the log..."
+                className="w-full bg-transparent border-none outline-none text-[#d4c5a9] placeholder-[#5c4d3c] resize-none max-h-[100px] overflow-y-auto custom-scrollbar leading-[1.4] font-serif"
                 rows={1}
                 style={{ height: '24px' }}
             />
         </div>
 
-        {inputText.trim() ? (
-            <button 
-                onClick={handleSend}
-                className="text-[#54656f] p-2 mb-1 hover:bg-gray-200 rounded-full transition-colors"
-            >
-                <Send size={24} />
-            </button>
-        ) : (
-             <button className="text-[#54656f] p-2 mb-1 hover:bg-gray-200 rounded-full transition-colors">
-                <Mic size={24} />
-            </button>
+        {/* Send Button */}
+        <button 
+            onClick={() => handleSend()}
+            disabled={!inputText.trim()}
+            className={`p-3 mb-1 rounded-full transition-all shadow-lg ${inputText.trim() ? 'bg-[#bf9b30] text-[#2c241b] hover:bg-[#d4b045] hover:scale-105' : 'bg-[#3e3226] text-[#5c4d3c]'}`}
+        >
+            <Send size={20} fill={inputText.trim() ? "#2c241b" : "none"}/>
+        </button>
+
+        {/* Emoji Picker Popover */}
+        {showEmoji && (
+            <div className="absolute bottom-20 left-4 bg-[#3e3226] border-2 border-[#bf9b30] rounded-lg p-2 shadow-2xl grid grid-cols-4 gap-2 w-64 animate-in slide-in-from-bottom-5">
+                {PIRATE_EMOJIS.map(e => (
+                    <button 
+                        key={e} 
+                        onClick={() => addEmoji(e)}
+                        className="text-2xl hover:bg-[#2c241b] p-2 rounded transition-colors"
+                    >
+                        {e}
+                    </button>
+                ))}
+            </div>
         )}
       </div>
     </div>

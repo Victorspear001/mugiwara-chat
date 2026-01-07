@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { loginOrRegister } from '../services/dbService';
+import { Skull, Anchor, Compass } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -14,7 +15,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone || !name) {
-      setError("Please fill in all fields");
+      setError("Arrgh! Fill in yer details, matey!");
       return;
     }
     
@@ -25,69 +26,72 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       await loginOrRegister(phone, name);
       onLoginSuccess();
     } catch (err) {
-      setError("Connection failed. Check your database settings.");
+      setError("The seas are rough (Connection failed).");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#f0f2f5] p-4">
-      {/* Header with Logo */}
-      <div className="flex items-center gap-3 mb-8">
-        <img 
-            src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/1024px-WhatsApp.svg.png" 
-            alt="Logo" 
-            className="w-10 h-10" 
-        />
-        <h1 className="text-[#41525d] text-2xl font-semibold uppercase tracking-wide">Mugiwara Chat</h1>
-      </div>
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-wood relative">
+      <div className="absolute inset-0 bg-black/50 pointer-events-none"></div>
 
-      <div className="bg-white p-10 rounded-lg shadow-sm w-full max-w-md">
-        <h2 className="text-[#111b21] text-2xl font-light mb-6 text-center">Login or Register</h2>
+      {/* Wanted Poster Container */}
+      <div className="relative z-10 w-full max-w-md bg-parchment p-8 shadow-2xl transform rotate-1 border-4 border-[#3e3226]">
+        {/* Nails */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-[#1a1a1a] shadow-inner border border-gray-600"></div>
+
+        <div className="flex flex-col items-center mb-6">
+          <div className="text-[#3e3226] mb-2">
+            <Skull size={48} />
+          </div>
+          <h1 className="pirate-font text-4xl font-black text-[#3e3226] tracking-widest text-center border-b-4 border-[#3e3226] pb-2 w-full">WANTED</h1>
+          <p className="text-[#5c4d3c] text-sm font-bold mt-2 tracking-widest uppercase">For The Grand Fleet</p>
+        </div>
         
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm text-[#54656f] mb-1">Phone Number (ID)</label>
-            <input 
-              type="text" 
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="e.g. 555-0100"
-              className="w-full border-b-2 border-[#00a884] focus:outline-none py-2 text-[#111b21] text-lg bg-transparent placeholder-gray-300"
-            />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="relative">
+            <label className="block text-xs font-bold text-[#5c4d3c] uppercase tracking-wider mb-1">Den Den Mushi (ID)</label>
+            <div className="flex items-center border-b-2 border-[#3e3226] py-1">
+                <Compass className="text-[#3e3226] mr-2" size={20}/>
+                <input 
+                  type="text" 
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="e.g. 555-0100"
+                  className="w-full bg-transparent focus:outline-none text-[#1a1a1a] text-lg font-serif placeholder-[#8c7a6b]"
+                />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm text-[#54656f] mb-1">Display Name</label>
-            <input 
-              type="text" 
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Monkey D. Luffy"
-              className="w-full border-b-2 border-[#e9edef] focus:border-[#00a884] transition-colors focus:outline-none py-2 text-[#111b21] text-lg bg-transparent"
-            />
+          <div className="relative">
+            <label className="block text-xs font-bold text-[#5c4d3c] uppercase tracking-wider mb-1">Pirate Name</label>
+            <div className="flex items-center border-b-2 border-[#3e3226] py-1">
+                <Anchor className="text-[#3e3226] mr-2" size={20}/>
+                <input 
+                  type="text" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Captain Jack"
+                  className="w-full bg-transparent focus:outline-none text-[#1a1a1a] text-lg font-serif placeholder-[#8c7a6b]"
+                />
+            </div>
           </div>
 
-          {error && <div className="text-red-500 text-sm">{error}</div>}
+          {error && <div className="text-[#8a1c1c] font-bold text-center pirate-font">{error}</div>}
 
           <button 
             type="submit" 
             disabled={isLoading}
-            className="w-full bg-[#00a884] hover:bg-[#008f6f] text-white font-semibold py-2.5 rounded-sm transition-colors mt-4 disabled:opacity-70"
+            className="w-full bg-[#8a1c1c] hover:bg-[#6b1616] text-[#d4c5a9] font-bold text-xl py-3 border-2 border-[#3e3226] shadow-[2px_2px_0px_0px_rgba(62,50,38,1)] active:shadow-none active:translate-y-[2px] transition-all flex items-center justify-center gap-2 pirate-font mt-4"
           >
-            {isLoading ? 'Connecting...' : 'Start Chatting'}
+            {isLoading ? 'Hoisting Sails...' : 'Board the Ship'}
           </button>
         </form>
 
-        <p className="text-center text-xs text-[#8696a0] mt-8">
-          No verification code required. Just enter your number to start.
-        </p>
-      </div>
-      
-      <div className="mt-8 flex flex-col items-center gap-2">
-         <span className="text-[#8696a0] text-sm">from</span>
-         <span className="text-[#54656f] font-bold text-xs tracking-widest">MUGIWARA INC</span>
+        <div className="mt-8 text-center">
+             <p className="text-[#5c4d3c] text-xs italic">By Order of the Pirate King</p>
+        </div>
       </div>
     </div>
   );
