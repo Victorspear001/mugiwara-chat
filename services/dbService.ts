@@ -1,5 +1,6 @@
 import { Contact, Message, User } from '../types';
 import { db, isDbConfigured } from '../lib/db';
+import { encryptMessage, decryptMessage } from '../lib/crypto';
 
 const CURRENT_USER_KEY = 'mugiwara_user';
 
@@ -49,7 +50,6 @@ export const logoutUser = () => {
   } catch (e) {
     console.error("Logout error:", e);
   }
-  // We do not force reload here anymore, letting App.tsx handle state transition
 };
 
 export const loginOrRegister = async (phone: string, name: string): Promise<User> => {
@@ -60,7 +60,6 @@ export const loginOrRegister = async (phone: string, name: string): Promise<User
   }
 
   try {
-    // Ensure schema exists before trying to query/insert
     await initializeSchema();
 
     const result = await db.execute({
@@ -88,7 +87,6 @@ export const loginOrRegister = async (phone: string, name: string): Promise<User
     }
   } catch (e) {
     console.error("Auth Error:", e);
-    // Fallback to local if DB fails
     const user = { phone, name, avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random` };
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
     return user;
@@ -139,37 +137,35 @@ export const getConversations = async (myPhone: string): Promise<Contact[]> => {
       const otherPhone = sender === myPhone ? receiver : sender;
 
       if (!contactsMap.has(otherPhone)) {
-        // Fetch user details only if not already cached in this loop
+        let name = otherPhone;
+        let avatar = `https://ui-avatars.com/api/?name=${otherPhone}`;
+
         try {
             const userRes = await db.execute({
                 sql: "SELECT name, avatar FROM users WHERE phone = ?",
                 args: [otherPhone]
             });
-            
-            const name = userRes.rows.length ? (userRes.rows[0].name as string) : otherPhone;
-            const avatar = userRes.rows.length ? (userRes.rows[0].avatar as string) : `https://ui-avatars.com/api/?name=${otherPhone}`;
-
-            contactsMap.set(otherPhone, {
-              phone: otherPhone,
-              name: name,
-              avatar: avatar,
-              lastMessage: row.text as string,
-              timestamp: Number(row.timestamp),
-              lastMessageTime: new Date(Number(row.timestamp)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-              unreadCount: 0 
-            });
+            if (userRes.rows.length) {
+                name = userRes.rows[0].name as string;
+                avatar = userRes.rows[0].avatar as string;
+            }
         } catch (innerErr) {
-            console.warn("Failed to fetch user details for", otherPhone, innerErr);
-             contactsMap.set(otherPhone, {
-              phone: otherPhone,
-              name: otherPhone,
-              avatar: `https://ui-avatars.com/api/?name=${otherPhone}`,
-              lastMessage: row.text as string,
-              timestamp: Number(row.timestamp),
-              lastMessageTime: new Date(Number(row.timestamp)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-              unreadCount: 0 
-            });
+            console.warn("Failed to fetch user details for", otherPhone);
         }
+
+        // DECRYPT LAST MESSAGE FOR PREVIEW
+        const rawText = row.text as string;
+        const decryptedText = await decryptMessage(rawText, myPhone, otherPhone);
+
+        contactsMap.set(otherPhone, {
+          phone: otherPhone,
+          name: name,
+          avatar: avatar,
+          lastMessage: decryptedText,
+          timestamp: Number(row.timestamp),
+          lastMessageTime: new Date(Number(row.timestamp)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+          unreadCount: 0 
+        });
       }
     }
 
@@ -194,15 +190,23 @@ export const getMessages = async (myPhone: string, otherPhone: string): Promise<
       args: [myPhone, otherPhone, otherPhone, myPhone]
     });
 
-    return result.rows.map(row => ({
-      id: row.id as string,
-      senderPhone: row.sender_phone as string,
-      receiverPhone: row.receiver_phone as string,
-      text: row.text as string,
-      timestamp: Number(row.timestamp),
-      status: row.status as 'sent' | 'delivered' | 'read',
-      isMe: row.sender_phone === myPhone
+    // We must decrypt messages in parallel
+    const messages = await Promise.all(result.rows.map(async (row) => {
+        const rawText = row.text as string;
+        const decryptedText = await decryptMessage(rawText, myPhone, otherPhone);
+
+        return {
+            id: row.id as string,
+            senderPhone: row.sender_phone as string,
+            receiverPhone: row.receiver_phone as string,
+            text: decryptedText,
+            timestamp: Number(row.timestamp),
+            status: row.status as 'sent' | 'delivered' | 'read',
+            isMe: row.sender_phone === myPhone
+        };
     }));
+
+    return messages;
   } catch (e) {
     console.error("Get Messages Error", e);
     return [];
@@ -210,11 +214,14 @@ export const getMessages = async (myPhone: string, otherPhone: string): Promise<
 };
 
 export const sendMessage = async (myPhone: string, otherPhone: string, text: string): Promise<Message> => {
+  // ENCRYPT BEFORE SENDING
+  const encryptedText = await encryptMessage(text, myPhone, otherPhone);
+
   const newMessage: Message = {
     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
     senderPhone: myPhone,
     receiverPhone: otherPhone,
-    text,
+    text: text, // Return plain text to UI for optimistic update
     timestamp: Date.now(),
     status: 'sent',
     isMe: true
@@ -224,11 +231,10 @@ export const sendMessage = async (myPhone: string, otherPhone: string, text: str
     try {
       await db.execute({
         sql: "INSERT INTO messages (id, sender_phone, receiver_phone, text, timestamp, status) VALUES (?, ?, ?, ?, ?, ?)",
-        args: [newMessage.id, newMessage.senderPhone, newMessage.receiverPhone, newMessage.text, newMessage.timestamp, newMessage.status]
+        args: [newMessage.id, newMessage.senderPhone, newMessage.receiverPhone, encryptedText, newMessage.timestamp, newMessage.status]
       });
     } catch (e) {
       console.error("Send Error:", e);
-      // Even if DB fails, we return the message object so the UI can show it (optimistically)
     }
   }
   return newMessage;
