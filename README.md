@@ -1,59 +1,31 @@
-# Mugiwara Chat - Setup Guide
+# Mugiwara Chat
 
-## 1. Turso Database Setup
+A real-time chat application powered by Turso DB and React.
 
-### Step 1: Create Database
-1. Go to [app.turso.tech](https://app.turso.tech).
-2. Create database named `mugiwara-chat`.
+## 🚀 How to Make it Public (Available to the World)
 
-### Step 2: Get Credentials
-1. Copy **Database URL** and **Auth Token**.
+To use this app on any device (iPhone, Android, Laptop) without running it locally, you must deploy it.
 
-### Step 3: Run SQL (CRITICAL)
-Go to the **SQL/Editor** tab in Turso and run this to enable multi-user chat:
+### Option 1: Vercel (Recommended)
+1.  Push this code to a **GitHub** repository.
+2.  Go to [Vercel.com](https://vercel.com) and Sign Up.
+3.  Click **"Add New..."** -> **"Project"**.
+4.  Select your `mugiwara-chat` repository.
+5.  Click **Deploy**.
+6.  Once finished, Vercel will give you a domain like `https://mugiwara-chat.vercel.app`. Share this link with anyone!
 
-```sql
-DROP TABLE IF EXISTS messages;
-DROP TABLE IF EXISTS users;
+### Option 2: Local Network (Wi-Fi only)
+If you just want to test on your phone at home:
+1.  Run `npm run dev` in your terminal.
+2.  Look for the "Network" URL in the terminal (e.g., `http://192.168.1.5:5173`).
+3.  Type that URL into your phone's browser while connected to the same Wi-Fi.
 
-CREATE TABLE users (
-    phone TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    avatar TEXT,
-    about TEXT DEFAULT 'Hey there! I am using Mugiwara Chat.'
-);
+## Database Setup (Already Configured)
+The database credentials are currently embedded in `lib/db.ts` for ease of use. 
+The app connects to a Turso database instance hosted in the cloud.
 
-CREATE TABLE messages (
-    id TEXT PRIMARY KEY,
-    sender_phone TEXT NOT NULL,
-    receiver_phone TEXT NOT NULL,
-    text TEXT NOT NULL,
-    timestamp INTEGER NOT NULL,
-    status TEXT DEFAULT 'sent'
-);
-```
-
----
-
-## 2. Deployment to Vercel (Critical for Cross-Device Support)
-
-This app uses Vite. When deploying to Vercel, you must ensure the Environment Variables are available to the browser.
-
-1.  Push your code to GitHub.
-2.  Import project into Vercel.
-3.  **In Vercel Project Settings > Environment Variables:**
-    Add the following keys (using the values from Turso):
-
-    -   `NEXT_PUBLIC_TURSO_DATABASE_URL`
-    -   `NEXT_PUBLIC_TURSO_AUTH_TOKEN`
-
-    *(Note: We use the `NEXT_PUBLIC_` prefix, and the included `vite.config.ts` ensures these are loaded correctly).*
-
-4.  **Redeploy** if you added these variables after the initial deployment.
-
-## 3. How to Use
-1.  Open the app on any device.
-2.  Login with a **Phone Number** (e.g., "555-001") and **Name**.
-3.  On a **second device**, login with a **different** Phone Number (e.g., "555-002").
-4.  On device 1, click the **New Chat Icon** (Message bubble).
-5.  Enter "555-002" to start chatting with the second device.
+## Features
+-   Real-time messaging (Polling)
+-   Global Sync (Database backed)
+-   One Piece themed UI
+-   Mobile Responsive

@@ -6,8 +6,12 @@ export default defineConfig({
   plugins: [react()],
   // Allows loading .env variables starting with NEXT_PUBLIC_ (common in Vercel)
   envPrefix: ['VITE_', 'NEXT_PUBLIC_'], 
+  server: {
+    host: true, // Expose to local network
+  },
   build: {
     target: 'esnext',
     outDir: 'dist',
+    sourcemap: false,
   }
 });

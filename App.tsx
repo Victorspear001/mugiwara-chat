@@ -4,6 +4,7 @@ import { ChatWindow } from './components/ChatWindow';
 import { Login } from './components/Login';
 import { Contact, User } from './types';
 import { getConversations, getCurrentUser } from './services/dbService';
+import { Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -11,16 +12,17 @@ const App: React.FC = () => {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check auth status on load
   useEffect(() => {
-    const storedUser = getCurrentUser();
-    if (storedUser) {
-      setUser(storedUser);
-    }
-    setIsLoading(false);
+    const init = async () => {
+      const storedUser = getCurrentUser();
+      if (storedUser) {
+        setUser(storedUser);
+      }
+      setIsLoading(false);
+    };
+    init();
   }, []);
 
-  // Poll for contact list updates (new messages bring conversations to top)
   useEffect(() => {
     if (!user) return;
 
@@ -29,12 +31,12 @@ const App: React.FC = () => {
         const data = await getConversations(user.phone);
         setContacts(data);
       } catch (e) {
-        console.error("Failed to load contacts", e);
+        console.error("Sync Error:", e);
       }
     };
 
     fetchContacts();
-    const interval = setInterval(fetchContacts, 5000); // Update sidebar every 5s
+    const interval = setInterval(fetchContacts, 4000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -46,12 +48,25 @@ const App: React.FC = () => {
     setSelectedContact(contact);
   };
 
-  const handleBack = () => {
-    setSelectedContact(null);
-  };
-
   if (isLoading) {
-     return <div className="h-screen w-screen bg-[#f0f2f5]"></div>;
+    return (
+      <div className="h-full w-full bg-[#f0f2f5] flex flex-col items-center justify-center gap-4">
+        <img 
+          src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/1024px-WhatsApp.svg.png" 
+          alt="Loading" 
+          className="w-16 h-16 animate-pulse opacity-50"
+        />
+        <div className="w-48 h-1 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-full bg-[#00a884] animate-[loading_2s_ease-in-out_infinite]" style={{ width: '30%' }}></div>
+        </div>
+        <style>{`
+          @keyframes loading {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(250%); }
+          }
+        `}</style>
+      </div>
+    );
   }
 
   if (!user) {
@@ -59,52 +74,48 @@ const App: React.FC = () => {
   }
 
   return (
-    // Main Container
-    <div className="relative h-screen w-screen overflow-hidden bg-[#d1d7db] xl:py-[19px]">
-        {/* White App Container (Centered on Large Screens) */}
-        <div className="h-full w-full max-w-[1600px] mx-auto bg-white xl:shadow-lg flex overflow-hidden xl:rounded-sm">
-            
-            {/* Sidebar Logic */}
-            <div className={`
-                ${selectedContact ? 'hidden md:flex' : 'flex'} 
-                w-full md:w-auto h-full
-            `}>
-                <Sidebar 
-                    contacts={contacts} 
-                    onSelectContact={handleSelectContact} 
-                    selectedContactId={selectedContact?.phone} // Use phone as ID
-                />
-            </div>
-
-            {/* Chat Logic */}
-            <div className={`
-                ${selectedContact ? 'flex' : 'hidden md:flex'} 
-                flex-1 h-full
-            `}>
-                {selectedContact ? (
-                    <ChatWindow contact={selectedContact} onBack={handleBack} />
-                ) : (
-                    // Empty State (Desktop only)
-                    <div className="hidden md:flex flex-col items-center justify-center w-full h-full bg-[#f0f2f5] border-l border-[#d1d7db] text-center border-b-[6px] border-[#25d366]">
-                         <div className="max-w-[560px] flex flex-col items-center">
-                            <img 
-                                src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/1024px-WhatsApp.svg.png" 
-                                alt="Welcome" 
-                                className="w-[100px] h-[100px] mb-8 opacity-40 grayscale" 
-                            />
-                            <h1 className="text-[#41525d] text-[32px] font-light mb-4">Mugiwara Chat Web</h1>
-                            <p className="text-[#667781] text-[14px] leading-6 mb-8">
-                                Send and receive messages without keeping your phone online.<br/>
-                                Use Mugiwara Chat on up to 4 linked devices and 1 phone.
-                            </p>
-                            <div className="text-[#8696a0] text-[12px] flex items-center gap-1 mt-auto absolute bottom-10">
-                                <span className="text-[10px]">🔒</span> End-to-end encrypted
-                            </div>
-                         </div>
-                    </div>
-                )}
-            </div>
+    <div className="relative h-full w-full overflow-hidden bg-[#d1d7db] xl:py-5">
+      <div className="h-full w-full max-w-[1600px] mx-auto bg-white xl:shadow-2xl flex overflow-hidden xl:rounded-md">
+        
+        {/* Sidebar */}
+        <div className={`
+          ${selectedContact ? 'hidden md:flex' : 'flex'} 
+          w-full md:w-[30%] lg:w-[400px] h-full border-r border-[#e9edef]
+        `}>
+          <Sidebar 
+            contacts={contacts} 
+            onSelectContact={handleSelectContact} 
+            selectedContactId={selectedContact?.phone}
+          />
         </div>
+
+        {/* Main Content Area */}
+        <div className={`
+          ${selectedContact ? 'flex' : 'hidden md:flex'} 
+          flex-1 h-full
+        `}>
+          {selectedContact ? (
+            <ChatWindow contact={selectedContact} onBack={() => setSelectedContact(null)} />
+          ) : (
+            <div className="flex flex-col items-center justify-center w-full h-full bg-[#f0f2f5] text-center border-b-[6px] border-[#25d366]">
+              <div className="max-w-md px-6">
+                <img 
+                  src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/1024px-WhatsApp.svg.png" 
+                  alt="Mugiwara" 
+                  className="w-24 h-24 mb-10 mx-auto opacity-20 grayscale" 
+                />
+                <h1 className="text-[#41525d] text-3xl font-light mb-4">Mugiwara Chat</h1>
+                <p className="text-[#667781] text-sm leading-relaxed mb-10">
+                  Send and receive messages in real-time. This application is powered by Turso for global database synchronization.
+                </p>
+                <div className="text-[#8696a0] text-xs flex items-center justify-center gap-1">
+                  <span className="text-[10px]">🔒</span> End-to-end encrypted
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

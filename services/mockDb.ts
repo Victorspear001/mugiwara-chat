@@ -1,1 +1,1 @@
-// Deprecated: Real DB implementation is in services/dbService.ts
+// Deprecated. Please use dbService.ts for all database operations.
