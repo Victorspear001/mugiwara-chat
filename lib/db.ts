@@ -1,20 +1,28 @@
+
 import { createClient } from "@libsql/client";
 
-// In Vite, we strictly use import.meta.env.
-// The vite.config.ts ensures NEXT_PUBLIC_ variables are accessible here.
-// We avoid process.env entirely as it can cause "process is not defined" errors in some browser contexts.
+// In Vite, we use import.meta.env to access variables.
+// envPrefix in vite.config.ts allows NEXT_PUBLIC_ variables from Vercel to be seen here.
 
-const url = (import.meta.env.NEXT_PUBLIC_TURSO_DATABASE_URL as string) || (import.meta.env.VITE_TURSO_DATABASE_URL as string);
-const token = (import.meta.env.NEXT_PUBLIC_TURSO_AUTH_TOKEN as string) || (import.meta.env.VITE_TURSO_AUTH_TOKEN as string);
+// Fix: Cast import.meta to any to resolve 'env' property not existing on type 'ImportMeta'
+const url = ((import.meta as any).env.NEXT_PUBLIC_TURSO_DATABASE_URL as string) || ((import.meta as any).env.VITE_TURSO_DATABASE_URL as string);
+// Fix: Cast import.meta to any to resolve 'env' property not existing on type 'ImportMeta'
+const token = ((import.meta as any).env.NEXT_PUBLIC_TURSO_AUTH_TOKEN as string) || ((import.meta as any).env.VITE_TURSO_AUTH_TOKEN as string);
 
+/**
+ * Checks if the Turso database configuration is present.
+ */
 export const isDbConfigured = () => {
-  return !!url && !!token;
+  const configured = !!url && url !== "" && !!token && token !== "";
+  if (!configured) {
+    console.warn("Database credentials missing. App running in local-only mode.");
+  }
+  return configured;
 };
 
-// Initialize the client.
-// We use placeholders if config is missing to prevent immediate crash during the initial bundle load.
-// The app logic checks isDbConfigured() before making actual calls.
+// Initialize the client. 
+// We use a try-catch or safe defaults to prevent the entire JS bundle from failing to load.
 export const db = createClient({
-  url: url || "libsql://placeholder.turso.io",
+  url: url || "libsql://placeholder-for-build.turso.io",
   authToken: token || "placeholder-token",
 });
