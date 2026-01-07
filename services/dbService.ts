@@ -3,6 +3,34 @@ import { db, isDbConfigured } from '../lib/db';
 
 const CURRENT_USER_KEY = 'mugiwara_user';
 
+// --- INITIALIZATION ---
+
+export const initializeSchema = async () => {
+  if (!isDbConfigured()) return;
+  try {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        phone TEXT PRIMARY KEY,
+        name TEXT,
+        avatar TEXT
+      )
+    `);
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        sender_phone TEXT,
+        receiver_phone TEXT,
+        text TEXT,
+        timestamp INTEGER,
+        status TEXT
+      )
+    `);
+    console.log("Database schema initialized");
+  } catch (e) {
+    console.error("Failed to initialize database schema:", e);
+  }
+};
+
 // --- AUTHENTICATION ---
 
 export const getCurrentUser = (): User | null => {
@@ -32,6 +60,9 @@ export const loginOrRegister = async (phone: string, name: string): Promise<User
   }
 
   try {
+    // Ensure schema exists before trying to query/insert
+    await initializeSchema();
+
     const result = await db.execute({
       sql: "SELECT * FROM users WHERE phone = ?",
       args: [phone]

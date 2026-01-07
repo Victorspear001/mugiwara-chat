@@ -3,7 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { ChatWindow } from './components/ChatWindow';
 import { Login } from './components/Login';
 import { Contact, User } from './types';
-import { getConversations, getCurrentUser } from './services/dbService';
+import { getConversations, getCurrentUser, initializeSchema } from './services/dbService';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -14,6 +14,9 @@ const App: React.FC = () => {
   useEffect(() => {
     const init = async () => {
       try {
+        // Initialize DB Schema (Create tables if not exist)
+        await initializeSchema();
+        
         const storedUser = getCurrentUser();
         if (storedUser) {
           setUser(storedUser);
