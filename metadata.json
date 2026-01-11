@@ -1,5 +1,8 @@
 {
   "name": "Mugiwara Chat",
-  "description": "A WhatsApp-web style chat application featuring One Piece characters, built with React and Tailwind CSS. Simulates a realtime chat experience with message persistence.",
-  "requestFramePermissions": []
+  "description": "A high-performance nautical themed chat with E2EE, voice notes, and media sharing.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
 }

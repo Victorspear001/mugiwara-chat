@@ -1,3 +1,4 @@
+
 export interface User {
   phone: string;
   name: string;
@@ -7,17 +8,20 @@ export interface User {
 
 export interface Contact extends User {
   lastMessage?: string;
-  lastMessageTime?: string; // Formatted string
-  timestamp?: number; // Raw timestamp for sorting
+  lastMessageTime?: string; 
+  timestamp?: number; 
   unreadCount?: number;
 }
+
+export type MessageType = 'text' | 'image' | 'video' | 'audio';
 
 export interface Message {
   id: string;
   senderPhone: string;
   receiverPhone: string;
-  text: string;
+  text: string; // Used for content (text or base64 data)
+  type: MessageType;
   timestamp: number;
   status: 'sent' | 'delivered' | 'read';
-  isMe: boolean; // Helper for UI
+  isMe: boolean; 
 }
